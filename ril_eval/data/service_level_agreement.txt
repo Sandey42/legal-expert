@@ -1,0 +1,30 @@
+SERVICE LEVEL AGREEMENT (SLA)
+
+This Service Level Agreement (“SLA”) forms part of the Vendor Services Agreement.
+
+1. Service Availability
+
+Vendor shall ensure 99.5% monthly uptime.
+
+2. Service Credits
+
+If uptime falls below the agreed threshold:
+
+Vendor shall provide service credits as defined in Schedule B
+
+Service credits are the sole and exclusive remedy
+
+3. Exclusions
+
+Downtime caused by:
+
+Scheduled maintenance
+
+Force majeure events
+
+Customer misconfiguration
+shall be excluded from uptime calculations.
+
+4. Liability
+
+Vendor shall not be liable for indirect, incidental, or consequential damages.

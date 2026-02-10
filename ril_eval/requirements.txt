@@ -1,0 +1,14 @@
+# Core RAG framework
+langchain>=0.3.0
+langchain-community>=0.3.0
+langchain-ollama>=0.2.0
+
+# Vector store
+langchain-chroma>=0.2.0
+chromadb>=0.5.0
+
+# CLI formatting
+rich>=13.0.0
+
+# Evaluation
+pandas>=2.0.0

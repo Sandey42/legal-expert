@@ -1,0 +1,37 @@
+VENDOR SERVICES AGREEMENT
+
+This Vendor Services Agreement (“Agreement”) is made between Acme Corp and Vendor XYZ Pvt. Ltd.
+
+1. Scope of Services
+
+Vendor shall provide software development and maintenance services as described in Schedule A.
+
+2. Payment Terms
+
+Acme Corp shall pay Vendor a fixed monthly fee. Late payments may incur interest.
+
+3. Indemnification
+
+Vendor agrees to indemnify, defend, and hold harmless Acme Corp from any third-party claims arising from:
+
+Intellectual property infringement
+
+Vendor’s negligence or willful misconduct
+
+4. Limitation of Liability
+
+Except for indemnification obligations and gross negligence:
+
+Each party’s total liability shall not exceed the total fees paid in the preceding 12 months
+
+5. Termination
+
+Either party may terminate:
+
+For convenience, with 60 days written notice
+
+Immediately, in case of material breach not cured within 15 days
+
+6. Governing Law
+
+This Agreement shall be governed by the laws of England and Wales.

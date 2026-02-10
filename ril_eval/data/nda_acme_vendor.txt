@@ -1,0 +1,41 @@
+NON-DISCLOSURE AGREEMENT (NDA)
+
+This Non-Disclosure Agreement (“Agreement”) is entered into between Acme Corp (“Disclosing Party”) and Vendor XYZ Pvt. Ltd. (“Receiving Party”), effective January 1, 2024.
+
+1. Definition of Confidential Information
+
+“Confidential Information” means any non-public information disclosed by the Disclosing Party, including but not limited to business plans, technical data, customer information, pricing, and trade secrets.
+
+Information shall not be considered confidential if it:
+
+Is publicly available without breach of this Agreement
+
+Was lawfully known prior to disclosure
+
+Is independently developed without use of Confidential Information
+
+2. Confidentiality Obligations
+
+The Receiving Party shall:
+
+Use Confidential Information solely for the permitted business purpose
+
+Not disclose Confidential Information to third parties without prior written consent
+
+Protect Confidential Information using at least reasonable care
+
+3. Term and Termination
+
+This Agreement shall remain in effect for three (3) years from the effective date.
+Either party may terminate this Agreement with thirty (30) days written notice.
+
+Confidentiality obligations shall survive termination for five (5) years.
+
+4. Liability
+
+The Receiving Party shall be liable for damages arising from breach of this Agreement.
+No explicit limitation of liability is specified.
+
+5. Governing Law
+
+This Agreement shall be governed by the laws of the State of California, USA.

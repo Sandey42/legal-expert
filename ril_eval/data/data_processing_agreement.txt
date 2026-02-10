@@ -1,0 +1,31 @@
+DATA PROCESSING AGREEMENT (DPA)
+
+This Data Processing Agreement (“DPA”) is entered into between Acme Corp (“Controller”) and Vendor XYZ Pvt. Ltd. (“Processor”).
+
+1. Scope and Purpose
+
+Processor shall process personal data solely for providing services under the Vendor Services Agreement.
+
+2. Data Security
+
+Processor shall implement appropriate technical and organizational measures to protect personal data.
+
+3. Data Breach Notification
+
+In the event of a personal data breach:
+
+Processor shall notify Controller without undue delay
+
+In any case, notification shall occur within 72 hours of becoming aware of the breach
+
+4. Subprocessors
+
+Processor may engage subprocessors with prior written authorization.
+
+5. Liability
+
+The DPA does not specify an independent liability cap and relies on the Vendor Services Agreement.
+
+6. Governing Law
+
+This DPA shall be governed by the laws of the European Union (GDPR) and, where applicable, local member state law.

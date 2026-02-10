@@ -1,0 +1,101 @@
+Multi-Agent RAG System for Legal Contract Analysis
+Problem Statement
+You are asked to design and implement a multi-agent Retrieval-Augmented Generation (RAG) system that assists users in querying and analyzing legal contracts.
+The system should allow users to ask natural language questions about contracts and receive grounded, precise, and well-cited answers, along with risk indicators where applicable.
+The application must run as a console-based interactive system supporting multi-turn conversations.
+This is an intentionally open-ended problem. There is no single “correct” architecture. We are interested in your design decisions, trade-offs, and engineering maturity.
+Documents Provided
+You will be given a small corpus of legal documents, for example:
+	•	NDAs
+	•	Vendor agreements
+	•	Service agreements
+	•	Data processing agreements (DPAs)
+Each document may contain:
+	•	Termination clauses
+	•	Confidentiality obligations
+	•	Indemnification terms
+	•	Liability limits
+	•	Governing law
+	•	Data breach and compliance clauses
+Core Functional Requirements
+1. Interactive Console Application
+	•	Accept user queries via CLI
+	•	Support multi-turn conversation
+	•	Maintain conversational context across turns
+	•	Display:
+	•	Final answer
+	•	Referenced document sections or clauses
+	•	Risk flags (if applicable)
+2. Multi-Agent Architecture
+You are expected to design a multi-agent system, where responsibilities are clearly separated.
+Agents must be meaningful. Over-agentification without clear responsibility separation will be penalized.
+3. RAG Design (Required Choices)
+You must clearly define and justify:
+a) Document Chunking Strategy
+b) Embedding Model
+c) LLM Model Choice (via Ollama or OpenAI)
+	•	Model name
+	•	Prompting strategy per agent
+	•	How determinism or verbosity is controlled
+d) Retrieval Mechanism
+e) Re-ranking (Optional Bonus)
+4. Prompt Design
+Prompt quality is a major evaluation criterion.
+5. Evaluation
+You are required to implement at least basic evaluation for your RAG system.
+Explain:
+	•	What you evaluate
+	•	Why it matters
+	•	Limitations of your evaluation approach
+6. Code Quality & Structure
+We expect:
+	•	Clean modular structure
+	•	Clear separation of concern
+	•	Meaningful docstrings and comments
+	•	Readable configuration management
+Deliverables
+1. GitHub Repository
+	•	Private repository
+	•	master branch with working code
+2. README.md (Mandatory)
+Must include:
+	•	Problem overview
+	•	Architecture explanation
+	•	Setup instructions
+	•	How to run the console app
+	•	Design choices and trade-offs
+	•	Known limitations
+Sample Queries:
+Sample Query Set for Evaluation of System
+These queries are deliberately crafted to stress different aspects of the system.
+	•	“What is the notice period for terminating the NDA?”
+	•	“What is the uptime commitment in the SLA?”
+	•	“Which law governs the Vendor Services Agreement?”
+	•	“Do confidentiality obligations survive termination of the NDA?”
+	•	“Is liability capped for breach of confidentiality?”
+	•	“What remedies are available if the SLA uptime is not met?”
+	•	“Is Vendor XYZ’s liability capped for data breaches?”
+	•	“Which agreement governs data breach notification timelines?”
+	•	“Are there conflicting governing laws across agreements?”
+	•	“Are there any legal risks related to liability exposure?”
+	•	“Identify any clauses that could pose financial risk to Acme Corp.”
+	•	“Is there any unlimited liability in these agreements?”
+	•	“Can Vendor XYZ share Acme’s confidential data with subcontractors?”
+	•	“What happens if Vendor delays breach notification beyond 72 hours?”
+	•	“Summarize all risks for Acme Corp in one paragraph.”
+	•	“Can you draft a better NDA for me?”
+	•	“What legal strategy should Acme take against Vendor XYZ?”
+Final Interview – Presentation
+Prepare a short slide deck covering:
+	•	Problem Statement & Requirements
+	•	System Architecture
+	•	RAG ingestion workflow
+	•	Retrieval + agent interaction flow
+	•	Design Decisions
+	•	Chunking
+	•	Embeddings
+	•	Retrieval
+	•	Agent prompts
+	•	Evaluation Approach
+	•	Enhancements if This Were Production
+
