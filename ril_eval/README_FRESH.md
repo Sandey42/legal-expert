@@ -144,7 +144,31 @@ On first run, the system automatically ingests the 4 legal documents from `data/
 - **Alternatives:** Pure LLM rewriting for everything, stateless (no history)
 - **Why:** Code gates handle trivial cases (greetings, numeric selection) without LLM cost. LLM rewriter handles complex referential queries. Trade-off: regex patterns need manual upkeep.
 
-**9. Temperature Strategy**
+**9. Conversation History Retention**
+- **Chose:** Sliding window of last 10 turns, stored in-memory, with CONTEXT prioritized over HISTORY in prompts
+- **Alternatives:** Full history (unbounded), summarization-based compression, external memory store (Redis/DB)
+- **Why:** Sliding window keeps prompt size bounded and predictable. Prioritizing retrieved context over history reduces hallucination from stale turns. Trade-off: earlier turns are silently dropped, which can lose important context in very long sessions.
+
+**10. Follow-up Suggestion Strategy**
+- **Chose:** LLM-generated suggestions (deepen, broaden, risk) with previous-suggestion deduplication and numeric shortcut selection
+- **Alternatives:** Static predefined follow-ups, no follow-ups (let user type freely), retrieval-based suggestions
+- **Why:** Dynamic suggestions guide the user toward high-value next queries while covering different exploration angles. Passing previous suggestions to the generator avoids repetition. Numeric selection ("1", "2", "3") reduces typing friction. Trade-off: adds one extra LLM call per turn.
+
+**11. Temperature Strategy**
 - **Chose:** 0.0 for Orchestrator/Analysis, 0.2 for Risk
 - **Alternatives:** Uniform temperature, higher creativity for all
 - **Why:** Factual Q&A needs deterministic output. Risk identification benefits from slight interpretive flexibility to surface non-obvious risks. Trade-off: risk agent occasionally over-interprets.
+
+## Known Limitations
+
+1. **8B model ceiling** -- `llama3.1:8b` occasionally struggles with complex multi-hop reasoning and can hallucinate when context is ambiguous. A 70B+ model or cloud API would improve quality significantly.
+
+2. **Small corpus only** -- tested with 4 documents (21 chunks). Chunking strategy and retrieval thresholds are tuned for this scale; would need re-evaluation for 100+ documents.
+
+3. **Single-user, in-process** -- conversation history is in-memory (lost on restart), ChromaDB runs in-process. Not suitable for concurrent users without adding a proper database and session management.
+
+4. **Clause-based chunking assumes structure** -- the chunker expects numbered sections. Unstructured or differently formatted legal documents would need a more adaptive splitting strategy.
+
+5. **Evaluation is deterministic only** -- ground-truth evaluation catches regressions but can't assess nuanced answer quality. LLM-as-judge (e.g., GPT-4) would be needed for production-grade evaluation.
+
+6. **No streaming** -- responses arrive all at once. Token-by-token streaming would improve perceived latency for longer answers.
