@@ -101,3 +101,50 @@ python main.py --reingest   # Force re-ingestion of documents
 ```
 
 On first run, the system automatically ingests the 4 legal documents from `data/` into ChromaDB. Subsequent runs reuse the persisted vector store.
+
+## Design Choices and Trade-offs
+
+**1. Chunking Strategy**
+- **Chose:** Clause-based splitting by numbered legal sections
+- **Alternatives:** Fixed-size (512 tokens), recursive character splitting, sentence-level
+- **Why:** Legal clauses are self-contained semantic units. Fixed-size chunks risk splitting a clause mid-sentence, losing meaning. Trade-off: uneven chunk sizes (some clauses are very short).
+
+**2. Embedding Model**
+- **Chose:** `nomic-embed-text` (768d, runs locally via Ollama)
+- **Alternatives:** OpenAI `text-embedding-3-small`, `BGE-large`, `E5-mistral`
+- **Why:** Runs fully local (no API key, no data leakage for legal docs), good quality for its size. Trade-off: lower benchmark scores than cloud embeddings.
+
+**3. LLM Selection**
+- **Chose:** `llama3.1:8b` via Ollama
+- **Alternatives:** GPT-4o, Claude, Llama 70B, Mistral
+- **Why:** Best quality-to-resource ratio for local inference. Runs on a single machine without GPU. Trade-off: less capable than 70B+ models on complex reasoning.
+
+**4. Retrieval Strategy**
+- **Chose:** Two-stage: bi-encoder (ChromaDB) → cross-encoder re-ranking
+- **Alternatives:** Single-stage semantic search, BM25 + semantic hybrid, ColBERT
+- **Why:** Bi-encoder is fast for candidate generation; cross-encoder captures token-level interactions for precise relevance. Trade-off: ~200ms extra latency, ~2GB PyTorch dependency.
+
+**5. Vector Store**
+- **Chose:** ChromaDB (file-persisted, in-process)
+- **Alternatives:** Pinecone, Weaviate, Qdrant, FAISS
+- **Why:** Zero infrastructure -- no server process, no cloud account. Persists to disk across runs. Trade-off: not suitable for concurrent users or million-scale corpora.
+
+**6. Multi-Agent vs. Monolithic**
+- **Chose:** 3 specialized agents (Orchestrator, Analysis, Risk)
+- **Alternatives:** Single LLM with one mega-prompt, 2-agent (no orchestrator), tool-calling agent
+- **Why:** Separation of concerns -- each agent has a focused prompt and temperature. Easier to test, debug, and extend individually. Trade-off: ~4 LLM calls per query instead of 1.
+
+**7. LLM Instance Strategy**
+- **Chose:** Separate `ChatOllama` instance per agent, injected via constructor (dependency injection)
+- **Alternatives:** Single shared instance across all agents, hard-coded LLM inside each agent
+- **Why:** Each agent owns its configuration (temperature, model). The Orchestrator reuses one LLM instance across its 3 internal LCEL chains (rewriter, classifier, follow-up generator) since they share the same temperature -- avoiding redundant connections while keeping agents independently configurable. Trade-off: slightly more wiring code, but makes agents testable and swappable.
+
+**8. Multi-Turn Handling**
+- **Chose:** Hybrid: code-level gates + LLM query rewriter
+- **Alternatives:** Pure LLM rewriting for everything, stateless (no history)
+- **Why:** Code gates handle trivial cases (greetings, numeric selection) without LLM cost. LLM rewriter handles complex referential queries. Trade-off: regex patterns need manual upkeep.
+
+**9. Temperature Strategy**
+- **Chose:** 0.0 for Orchestrator/Analysis, 0.2 for Risk
+- **Alternatives:** Uniform temperature, higher creativity for all
+- **Why:** Factual Q&A needs deterministic output. Risk identification benefits from slight interpretive flexibility to surface non-obvious risks. Trade-off: risk agent occasionally over-interprets.
