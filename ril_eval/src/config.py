@@ -38,8 +38,19 @@ EMBEDDING_MODEL = "nomic-embed-text"
 # ──────────────────────────────────────────────
 # Retrieval Configuration
 # ──────────────────────────────────────────────
-RETRIEVAL_TOP_K = 5          # Number of chunks to retrieve per query
+RETRIEVAL_TOP_K = 10         # Initial candidates from bi-encoder (wider net for re-ranking)
 SIMILARITY_THRESHOLD = 0.3   # Minimum similarity score to include a chunk
+RETRIEVAL_MIN_RESULTS = 3    # Always keep at least this many results after filtering
+
+# ──────────────────────────────────────────────
+# Re-Ranking Configuration
+# ──────────────────────────────────────────────
+# Two-stage retrieval: bi-encoder fetches RETRIEVAL_TOP_K candidates,
+# cross-encoder re-ranks them, returns RERANKER_TOP_K best results.
+# Toggle RERANKER_ENABLED to compare with/without re-ranking.
+RERANKER_ENABLED = os.getenv("RERANKER_ENABLED", "true").lower() == "true"
+RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"  # ~80MB, fast, accurate
+RERANKER_TOP_K = 5           # Number of chunks to keep after re-ranking
 
 # ──────────────────────────────────────────────
 # Agent LLM Parameters

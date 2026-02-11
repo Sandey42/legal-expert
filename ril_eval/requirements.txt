@@ -7,6 +7,11 @@ langchain-ollama>=0.2.0
 langchain-chroma>=0.2.0
 chromadb>=0.5.0
 
+# Re-ranking: cross-encoder for two-stage retrieval
+# Pulls PyTorch as a transitive dependency (~2GB).
+# Trade-off: install size vs. retrieval quality.
+sentence-transformers>=3.0.0
+
 # CLI formatting
 rich>=13.0.0
 

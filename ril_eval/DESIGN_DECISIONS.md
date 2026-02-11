@@ -84,7 +84,25 @@ Tracking all architectural choices, why they were made, and what we'd do differe
 **Production enhancement:**
 - Hybrid retrieval (BM25 + semantic) for best of keyword and meaning-based search
 - Union filter for multi-document queries
-- Re-ranking with a cross-encoder model for better result ordering
+
+---
+
+## 6b. Re-Ranking: Cross-Encoder (Two-Stage Retrieval)
+
+**Choice:** After bi-encoder retrieval (ChromaDB cosine similarity), re-rank results using a cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2`).
+
+**Why:** The bi-encoder encodes query and chunks independently, then compares with a simple dot product. This is fast but lossy -- it can't model the interaction between query and chunk tokens. A cross-encoder reads both texts jointly through full cross-attention, producing a more accurate relevance score.
+
+**How it works:**
+1. Bi-encoder retrieves top-10 candidates (wider net than the final top-5)
+2. Cross-encoder scores each (query, chunk) pair jointly
+3. Results are re-sorted by cross-encoder score, top-5 returned to the agent
+
+**Trade-off:** Adds `sentence-transformers` as a dependency, which pulls PyTorch (~2GB). This contradicts our earlier choice of Ollama embeddings to avoid PyTorch. The justification: re-ranking is a meaningful retrieval quality improvement that demonstrates understanding of two-stage retrieval -- a production-standard pattern. The feature is toggleable via `RERANKER_ENABLED` config.
+
+**Trade-off (latency):** Cross-encoder adds ~0.5-1s per query (scoring 10 pairs). Acceptable for a console app, but would need batching/caching in a high-throughput production system.
+
+**Production enhancement:** Use a more powerful cross-encoder (ms-marco-MiniLM-L-12 or a domain-fine-tuned legal model). Consider Cohere Rerank API for zero-infrastructure re-ranking.
 
 ---
 
@@ -173,3 +191,21 @@ Grounded by passing the full document inventory (all documents + section titles)
 **Trade-off:** Finite pattern list -- creative phrasing ("catch you later!", "peace out") may slip through. However, the worst case is the classifier routing it to `out_of_scope`, which is acceptable.
 
 **Production enhancement:** Use a lightweight intent classifier (fasttext or similar) to detect chitchat vs. task intent, covering novel phrasings without maintaining a pattern list.
+
+---
+
+## 13. Evaluation: Ground-Truth Based (Deterministic)
+
+**Choice:** Evaluate 4 dimensions (classification accuracy, retrieval recall, citation faithfulness, answer correctness) using manually crafted ground-truth test cases. No LLM-as-judge.
+
+**Why:** The system uses llama3.1:8b for inference. Using the same 8B model as both the system under test and the evaluation judge would be circular -- the model has the same blind spots in both roles. A deterministic, ground-truth-based approach is reproducible, fast, and every failure is immediately explainable.
+
+**What each dimension catches:**
+- Classification → cascade errors (wrong routing → wrong agent)
+- Retrieval recall → the most impactful failure (missing context is unfixable downstream)
+- Citation faithfulness → source hallucination (LLM inventing citations)
+- Answer correctness → end-to-end fact verification
+
+**Trade-off:** Keyword-based answer checking is brittle to paraphrasing. The system might answer correctly using different words and score as a false negative. Ground truth requires manual effort (16 cases here).
+
+**Production enhancement:** Add RAGAS-style LLM-as-judge evaluation using GPT-4 for nuanced checks (hallucination detection via claim decomposition, answer completeness, explanation quality). Keep the ground-truth tests as a fast regression safety net alongside the LLM judge.

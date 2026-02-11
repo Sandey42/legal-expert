@@ -28,6 +28,8 @@ from src.config import (
     OLLAMA_MODEL,
     OLLAMA_BASE_URL,
     ORCHESTRATOR_TEMPERATURE,
+    ANALYSIS_TEMPERATURE,
+    RISK_TEMPERATURE,
     MAX_CONVERSATION_HISTORY,
 )
 from src.prompts.templates import (
@@ -76,6 +78,13 @@ REFERENTIAL_PATTERNS = [
     r"\bcontinue\b",       # "continue"
     r"\bgo on\b",          # "go on"
     r"\band the\b",        # "and the vendor agreement?"
+    # Conversational continuations -- user continues a topic from prior turn
+    r"\blets\s+talk\b",    # "lets talk about section 1"
+    r"\blet'?s\s+discuss\b",  # "let's discuss the liability"
+    r"\btalk\s+about\b",   # "talk about section 2"
+    r"\bdiscuss\b",        # "discuss the indemnification"
+    r"\bsection\s+\d\b",   # "section 1" -- bare section ref needs context
+    r"\bclause\b",         # "what does this clause say?"
 ]
 
 # Short queries (< this many words) with conversation history are treated
@@ -131,13 +140,27 @@ class Orchestrator:
     """
 
     def __init__(self, retriever: Retriever | None = None):
-        # Shared LLM instance for lightweight orchestrator tasks
+        # ── LLM Wiring (centralized) ──────────────────────
+        # All model selection and temperature config lives here.
+        # Agents receive their LLM via dependency injection -- they don't
+        # know or care whether it's Ollama, OpenAI, or a mock for testing.
         self._orchestrator_llm = ChatOllama(
             model=OLLAMA_MODEL,
             base_url=OLLAMA_BASE_URL,
-            temperature=ORCHESTRATOR_TEMPERATURE,  # 0.0 = deterministic
+            temperature=ORCHESTRATOR_TEMPERATURE,  # 0.0 = deterministic routing
+        )
+        analysis_llm = ChatOllama(
+            model=OLLAMA_MODEL,
+            base_url=OLLAMA_BASE_URL,
+            temperature=ANALYSIS_TEMPERATURE,  # 0.0 = factual precision
+        )
+        risk_llm = ChatOllama(
+            model=OLLAMA_MODEL,
+            base_url=OLLAMA_BASE_URL,
+            temperature=RISK_TEMPERATURE,  # 0.2 = interpretive flexibility
         )
 
+        # ── Orchestrator Chains ───────────────────────────
         # Query rewriter chain
         self.rewriter_prompt = ChatPromptTemplate.from_messages([
             ("system", REWRITER_SYSTEM_PROMPT),
@@ -165,10 +188,10 @@ class Orchestrator:
             self.followup_prompt | self._orchestrator_llm | StrOutputParser()
         )
 
-        # Specialist agents
+        # ── Specialist Agents (LLMs injected) ────────────
         self.retriever = retriever or Retriever()
-        self.analysis_agent = AnalysisAgent()
-        self.risk_agent = RiskAgent()
+        self.analysis_agent = AnalysisAgent(llm=analysis_llm)
+        self.risk_agent = RiskAgent(llm=risk_llm)
 
         # Conversation memory: list of (question, answer) tuples
         # We store the ORIGINAL question (not rewritten) for natural history
@@ -377,12 +400,19 @@ class Orchestrator:
         # Get full document inventory for grounding
         inventory = self._get_document_inventory()
 
+        # Format previous suggestions so the model knows what NOT to repeat
+        if self._last_follow_ups:
+            prev_str = "\n".join(f"- {s}" for s in self._last_follow_ups)
+        else:
+            prev_str = "None (this is the first question)."
+
         try:
             result = self.followup_chain.invoke({
                 "question": question,
                 "answer_summary": answer_summary,
                 "documents_referenced": docs_str,
                 "document_inventory": inventory,
+                "previous_suggestions": prev_str,
             })
 
             # Parse numbered list (e.g., "1. Question?\n2. Question?")
@@ -410,9 +440,12 @@ class Orchestrator:
         Clean up LLM-generated follow-up suggestions.
 
         The 8B model often ignores prompt instructions and adds section
-        references, verbose phrases, etc. We fix these in code since
-        prompt-only fixes are unreliable with smaller models.
+        references, category labels, verbose phrases, etc. We fix these
+        in code since prompt-only fixes are unreliable with smaller models.
         """
+        # Remove category labels the 8B model leaks from the prompt instructions
+        # e.g., "**DEEPEN**: What...", "BROADEN: How...", "**RISK**: Can..."
+        text = re.sub(r'^\*{0,2}(DEEPEN|BROADEN|RISK|DEEPENING|BROADENING)\*{0,2}[:\s-]+', '', text, flags=re.IGNORECASE)
         # Remove section references: "under Section 1", "in Section 3 - Title", etc.
         text = re.sub(r'\s*(under|in|of|from|per|as stated in|as outlined in|outlined in)\s+Section\s+\d+(\s*-\s*[^,?.!]+)?', '', text, flags=re.IGNORECASE)
         # Remove standalone "Section X" references
@@ -500,8 +533,9 @@ class Orchestrator:
             }
 
         # Step 4: Retrieve relevant chunks using the REWRITTEN query
+        # Single retrieval call; format the same results for the LLM context
         retrieved = self.retriever.retrieve(rewritten_query)
-        context = self.retriever.retrieve_formatted(rewritten_query)
+        context = self.retriever.format_results(retrieved)
         chat_history = self._format_chat_history()
 
         # Step 5: Route to the appropriate agent

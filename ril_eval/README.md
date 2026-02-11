@@ -42,13 +42,20 @@ A console-based interactive system that analyzes legal contracts using a multi-a
             ┌──────────────┐
             │  RETRIEVER   │
             │              │
+            │ Stage 1:     │
+            │ Bi-encoder   │
             │ Single doc?  │
             │ → Metadata   │
             │   filter     │
-            │              │
             │ Multi/none?  │
             │ → Semantic   │
             │   search     │
+            │   (top-10)   │
+            │              │
+            │ Stage 2:     │
+            │ Cross-encoder│
+            │ re-ranking   │
+            │   (top-5)    │
             └──────┬───────┘
                    │
                    ▼
@@ -98,15 +105,19 @@ The orchestrator is NOT a separate LLM agent -- it reuses the same model instanc
 
 **Why:** sentence-transformers pulls PyTorch (~2GB). nomic-embed-text runs through Ollama (already required for the LLM), keeping the install lightweight (~274MB).
 
-### 3. Retrieval: Semantic Search + Metadata Filtering
+### 3. Retrieval: Two-Stage (Bi-Encoder + Cross-Encoder Re-Ranking)
 
-**Choice:** Two-strategy retriever:
-- **Single document mentioned** (e.g., "summarize the SLA") → filter ChromaDB to that document
-- **Multiple or no documents** → standard semantic search across all (top-5)
+**Choice:** Two-stage retriever with metadata filtering:
+- **Stage 1 (bi-encoder):** ChromaDB cosine similarity retrieves top-10 candidates
+  - **Single document mentioned** (e.g., "summarize the SLA") → metadata filter to that document
+  - **Multiple or no documents** → semantic search across all
+- **Stage 2 (cross-encoder):** `ms-marco-MiniLM-L-6-v2` re-ranks candidates, returns top-5
 
-**Why:** Pure semantic search fails on broad document-scoped queries ("summarize the SLA") because "summarize" doesn't match any specific section. Metadata filtering ensures complete document coverage.
+**Why:** The bi-encoder embeds query and chunks independently -- fast but approximate. The cross-encoder reads query + chunk jointly through cross-attention, catching nuances like paraphrase matching ("capped" vs. "shall not exceed") and negation handling. Casting a wider initial net (top-10) then re-ranking down (top-5) improves retrieval precision.
 
 **Document detection** uses a keyword alias map (e.g., "sla" → "SLA", "non-disclosure" → "NDA"). Simple but sufficient for 4 known documents.
+
+**Trade-off:** Adds `sentence-transformers` (pulls PyTorch ~2GB). Toggleable via `RERANKER_ENABLED=false` environment variable.
 
 ### 4. Multi-Turn Conversation: Hybrid Strategy
 
@@ -166,7 +177,8 @@ ril_eval/
 │   └── prompts/
 │       └── templates.py           # All prompt templates (centralized)
 ├── evaluation/
-│   └── evaluate.py                # RAG evaluation framework
+│   ├── test_cases.py              # Ground-truth dataset (16 queries)
+│   └── evaluate.py                # 4-dimension evaluation runner
 ├── main.py                        # Interactive CLI entry point
 ├── requirements.txt               # Python dependencies
 ├── DESIGN_DECISIONS.md            # Detailed trade-off analysis
@@ -260,19 +272,54 @@ You: 2    ← selects suggestion #2 (broadening to a different document)
 
 ---
 
+## Evaluation
+
+### How to Run
+
+```bash
+python -m evaluation.evaluate              # Run all 16 test cases
+python -m evaluation.evaluate --verbose    # Show full answers
+python -m evaluation.evaluate --csv        # Save results to evaluation/results.csv
+```
+
+### What We Evaluate (4 Dimensions)
+
+| Dimension | What It Checks | How | Failure Example |
+|-----------|---------------|-----|-----------------|
+| **Classification Accuracy** | Query routed to correct agent? | Compare classifier output vs. expected category | "Is liability capped?" classified as analysis instead of risk |
+| **Retrieval Recall** | Right documents/sections retrieved? | Check expected docs/sections appear in results | "Uptime in the SLA?" retrieves NDA instead of SLA |
+| **Citation Faithfulness** | Citations grounded in retrieved context? | Parse `[Source: ...]` from answer, verify against retrieved chunks | Answer cites "NDA Section 7" but Section 7 doesn't exist |
+| **Answer Correctness** | Answer contains expected key facts? | Case-insensitive phrase matching | "Uptime commitment?" answer missing "99.5%" |
+
+### Why These Metrics Matter
+
+- **Classification** errors cascade: wrong routing → wrong agent → wrong answer type
+- **Retrieval** failures are unfixable downstream: if the right chunk isn't retrieved, the agent can't find the answer
+- **Faithfulness** catches citation hallucination: the LLM inventing sources that weren't in its context
+- **Correctness** verifies the end-to-end pipeline delivers the right facts
+
+### Limitations of This Approach
+
+1. **Keyword matching is brittle**: "30 days" matches but "a month" doesn't. Paraphrased answers may score lower than they deserve.
+2. **Cannot detect subtle hallucinations**: If the LLM adds "24/7 support" while citing a real source, we miss it. A RAGAS-style LLM judge (GPT-4) would catch this by decomposing the answer into claims.
+3. **Manual ground truth**: 16 test cases cover the assignment queries but don't cover novel user phrasings. In production, we'd add RAGAS for scalable evaluation without manual effort.
+4. **No nuance evaluation**: Can't assess answer completeness, explanation quality, or tone -- only factual presence/absence.
+
+---
+
 ## Known Limitations
 
 1. **8B Model Constraints:** llama3.1:8b has limited instruction-following ability. The query rewriter occasionally misinterprets intent, mitigated by code-level guards.
 
 2. **Small Corpus:** 4 documents, 21 chunks. The architecture is designed for scale but not stress-tested with hundreds of documents.
 
-3. **No Re-ranking:** Retrieved chunks are ranked by raw embedding similarity. A cross-encoder re-ranker would improve result ordering.
+3. **Keyword-Based Document Detection:** The alias map covers known document names. Unusual references ("the confidentiality agreement") may not be caught.
 
-4. **Keyword-Based Document Detection:** The alias map covers known document names. Unusual references ("the confidentiality agreement") may not be caught.
+4. **Context Window:** The 8B model's ~8K token context limits how much history + context can be passed simultaneously.
 
-5. **Context Window:** The 8B model's ~8K token context limits how much history + context can be passed simultaneously.
+5. **No Hallucination Detection:** Answers are grounded via prompting, but there's no automated check that the answer actually matches the source text.
 
-6. **No Hallucination Detection:** Answers are grounded via prompting, but there's no automated check that the answer actually matches the source text.
+6. **Re-ranker adds PyTorch dependency:** The cross-encoder re-ranker pulls `sentence-transformers` + PyTorch (~2GB). Disable with `RERANKER_ENABLED=false` for a lighter install.
 
 ---
 
@@ -283,7 +330,6 @@ If this were a production system, we would add:
 | Enhancement | Impact | Effort |
 |-------------|--------|--------|
 | **Hybrid Retrieval (BM25 + Semantic)** | Handles keyword-heavy and meaning-heavy queries | Medium |
-| **Cross-Encoder Re-ranking** | Better result ordering after initial retrieval | Low |
 | **GPT-4o / GPT-4o-mini** | Much better instruction following, fewer code guards needed | Low |
 | **Explored-Topics Tracking** | Smarter follow-ups biased toward unexplored areas | Medium |
 | **Memory Summarization** | Handles 50+ turn conversations without context overflow | Medium |

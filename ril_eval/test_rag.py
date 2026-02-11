@@ -7,6 +7,9 @@ This tests the full flow:
 Run: python test_rag.py
 """
 
+from langchain_ollama import ChatOllama
+
+from src.config import OLLAMA_MODEL, OLLAMA_BASE_URL, ANALYSIS_TEMPERATURE
 from src.retriever import Retriever
 from src.agents.analysis import AnalysisAgent
 
@@ -14,7 +17,12 @@ from src.agents.analysis import AnalysisAgent
 def main():
     print("Loading retriever and analysis agent...")
     retriever = Retriever()
-    agent = AnalysisAgent()
+    analysis_llm = ChatOllama(
+        model=OLLAMA_MODEL,
+        base_url=OLLAMA_BASE_URL,
+        temperature=ANALYSIS_TEMPERATURE,
+    )
+    agent = AnalysisAgent(llm=analysis_llm)
 
     test_queries = [
         "What is the uptime commitment in the SLA?",

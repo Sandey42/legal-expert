@@ -90,7 +90,9 @@ def display_response(result: dict):
     if sources:
         source_lines = []
         for s in sources:
-            score_display = f"(relevance: {1 - s['score']:.2f})" if s['score'] else ""
+            # Score is already 0-1 relevance (higher = better),
+            # normalized in the retriever for both bi-encoder and cross-encoder paths.
+            score_display = f"(relevance: {s['score']:.2f})" if s['score'] else ""
             source_lines.append(f"  • {s['document']} → {s['section']} {score_display}")
 
         console.print(

@@ -9,17 +9,15 @@ The Risk Agent has a slightly higher temperature (0.2) because risk interpretati
 requires some reasoning flexibility -- it's not pure fact extraction.
 
 It categorizes risks as HIGH / MEDIUM / LOW and explains why each matters.
+
+LLM is injected via constructor (dependency injection) -- the orchestrator
+controls model selection and temperature.
 """
 
-from langchain_ollama import ChatOllama
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-from src.config import (
-    OLLAMA_MODEL,
-    OLLAMA_BASE_URL,
-    RISK_TEMPERATURE,
-)
 from src.prompts.templates import RISK_SYSTEM_PROMPT, RISK_USER_PROMPT
 
 
@@ -29,14 +27,13 @@ class RiskAgent:
 
     Given retrieved document context and a risk-related question,
     identifies and categorizes potential risks with citations.
+
+    The LLM is provided externally (dependency injection), making this agent
+    testable (pass a mock) and independently reconfigurable without code changes.
     """
 
-    def __init__(self):
-        self.llm = ChatOllama(
-            model=OLLAMA_MODEL,
-            base_url=OLLAMA_BASE_URL,
-            temperature=RISK_TEMPERATURE,  # 0.2 = slight flexibility for interpretation
-        )
+    def __init__(self, llm: BaseChatModel):
+        self.llm = llm
 
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", RISK_SYSTEM_PROMPT),

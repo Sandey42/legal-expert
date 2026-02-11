@@ -10,17 +10,14 @@ KEY DESIGN DECISIONS:
 - Temperature = 0.0 (deterministic -- we want factual precision, not creativity)
 - System prompt enforces grounding (must cite sources, must not hallucinate)
 - Uses {context} + {question} prompt pattern standard in RAG systems
+- LLM is injected via constructor (dependency injection) so the agent doesn't
+  own its infrastructure -- the orchestrator controls wiring.
 """
 
-from langchain_ollama import ChatOllama
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-from src.config import (
-    OLLAMA_MODEL,
-    OLLAMA_BASE_URL,
-    ANALYSIS_TEMPERATURE,
-)
 from src.prompts.templates import ANALYSIS_SYSTEM_PROMPT, ANALYSIS_USER_PROMPT
 
 
@@ -30,14 +27,13 @@ class AnalysisAgent:
 
     Given retrieved document context and a user question,
     generates a grounded, cited answer.
+
+    The LLM is provided externally (dependency injection), making this agent
+    testable (pass a mock) and independently reconfigurable without code changes.
     """
 
-    def __init__(self):
-        self.llm = ChatOllama(
-            model=OLLAMA_MODEL,
-            base_url=OLLAMA_BASE_URL,
-            temperature=ANALYSIS_TEMPERATURE,  # 0.0 = deterministic
-        )
+    def __init__(self, llm: BaseChatModel):
+        self.llm = llm
 
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", ANALYSIS_SYSTEM_PROMPT),

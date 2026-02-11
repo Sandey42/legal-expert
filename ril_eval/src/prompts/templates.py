@@ -203,7 +203,10 @@ The user asked: {question}
 The system answered (summary): {answer_summary}
 Documents referenced in this answer: {documents_referenced}
 
-Suggest exactly 3 follow-up questions (1 deepening, 1 broadening to a different document, 1 risk-related):"""
+PREVIOUSLY SUGGESTED (do NOT repeat or rephrase these):
+{previous_suggestions}
+
+Suggest exactly 3 NEW follow-up questions (1 deepening, 1 broadening to a different document, 1 risk-related):"""
 
 
 # ──────────────────────────────────────────────
