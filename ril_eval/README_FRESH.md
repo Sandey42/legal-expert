@@ -69,3 +69,35 @@ data/*.txt → Clause-based chunker → nomic-embed-text (768d) → ChromaDB (21
 | **Retriever** | Two-stage retrieval: bi-encoder search + cross-encoder re-ranking | Metadata filtering for single-document queries |
 | **Chunker** | Splits legal documents by numbered clause sections | Produces 21 chunks with document-type and section metadata |
 | **ChromaDB** | File-persisted vector store | In-process, no separate server required |
+
+## Setup Instructions
+
+**Prerequisites**
+
+- Python 3.10+
+- [Ollama](https://ollama.com) installed and running
+
+**Start Ollama and pull models**
+
+```bash
+ollama serve                # start the Ollama server (if not already running)
+ollama pull llama3.1:8b
+ollama pull nomic-embed-text
+```
+
+**Install dependencies**
+
+```bash
+pip install -r requirements.txt
+```
+
+> Note: `sentence-transformers` pulls PyTorch as a transitive dependency (~2 GB). This is the trade-off for cross-encoder re-ranking quality.
+
+## How to Run
+
+```bash
+python main.py              # Start interactive console
+python main.py --reingest   # Force re-ingestion of documents
+```
+
+On first run, the system automatically ingests the 4 legal documents from `data/` into ChromaDB. Subsequent runs reuse the persisted vector store.
