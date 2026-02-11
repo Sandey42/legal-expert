@@ -6,6 +6,8 @@ A console-based multi-agent RAG system that lets users query and analyze legal c
 
 ## Architecture
 
+![Architecture Diagram](assets/architecture_diagram_fresh.png)
+
 ### System Flow
 
 ```
